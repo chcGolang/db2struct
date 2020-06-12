@@ -30,7 +30,7 @@ func GetColumnsFromMysqlTable(mariadbUser string, mariadbPassword string, mariad
 	// Store colum as map of maps
 	columnDataTypes := make(map[string]map[string]string)
 	// Select columnd data from INFORMATION_SCHEMA
-	columnDataTypeQuery := "SELECT COLUMN_NAME, COLUMN_KEY, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND table_name = ?"
+	columnDataTypeQuery := "SELECT COLUMN_NAME, COLUMN_KEY, DATA_TYPE, IS_NULLABLE, COLUMN_COMMENT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND table_name = ?"
 
 	if Debug {
 		fmt.Println("running: " + columnDataTypeQuery)
@@ -53,9 +53,10 @@ func GetColumnsFromMysqlTable(mariadbUser string, mariadbPassword string, mariad
 		var columnKey string
 		var dataType string
 		var nullable string
-		rows.Scan(&column, &columnKey, &dataType, &nullable)
+		var columnComment string
+		rows.Scan(&column, &columnKey, &dataType, &nullable, &columnComment)
 
-		columnDataTypes[column] = map[string]string{"value": dataType, "nullable": nullable, "primary": columnKey}
+		columnDataTypes[column] = map[string]string{"value": dataType, "nullable": nullable, "primary": columnKey, "columnComment": columnComment}
 	}
 
 	return &columnDataTypes, err
@@ -83,6 +84,8 @@ func generateMysqlTypes(obj map[string]map[string]string, depth int, jsonAnnotat
 			primary = ";primary_key"
 		}
 
+		comment := mysqlType["columnComment"]
+
 		// Get the corresponding go value type for this mysql type
 		var valueType string
 		// If the guregu (https://github.com/guregu/null) CLI option is passed use its types, otherwise use go's sql.NullX
@@ -97,6 +100,7 @@ func generateMysqlTypes(obj map[string]map[string]string, depth int, jsonAnnotat
 		if jsonAnnotation == true {
 			annotations = append(annotations, fmt.Sprintf("json:\"%s\"", key))
 		}
+		annotations = append(annotations, fmt.Sprintf("info:\"%s\"", comment))
 		if len(annotations) > 0 {
 			structure += fmt.Sprintf("\n%s %s `%s`",
 				fieldName,
