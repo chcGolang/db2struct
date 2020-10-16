@@ -30,7 +30,7 @@ func GetColumnsFromMysqlTable(mariadbUser string, mariadbPassword string, mariad
 	// Store colum as map of maps
 	columnDataTypes := make(map[string]map[string]string)
 	// Select columnd data from INFORMATION_SCHEMA
-	columnDataTypeQuery := "SELECT COLUMN_NAME, COLUMN_KEY, DATA_TYPE, IS_NULLABLE, COLUMN_COMMENT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND table_name = ?"
+	columnDataTypeQuery := "SELECT COLUMN_NAME, COLUMN_KEY, DATA_TYPE, IS_NULLABLE, COLUMN_COMMENT, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND table_name = ?"
 
 	if Debug {
 		fmt.Println("running: " + columnDataTypeQuery)
@@ -54,9 +54,10 @@ func GetColumnsFromMysqlTable(mariadbUser string, mariadbPassword string, mariad
 		var dataType string
 		var nullable string
 		var columnComment string
-		rows.Scan(&column, &columnKey, &dataType, &nullable, &columnComment)
+		var extra string
+		rows.Scan(&column, &columnKey, &dataType, &nullable, &columnComment, &extra)
 
-		columnDataTypes[column] = map[string]string{"value": dataType, "nullable": nullable, "primary": columnKey, "columnComment": columnComment}
+		columnDataTypes[column] = map[string]string{"value": dataType, "nullable": nullable, "primary": columnKey, "columnComment": columnComment, "extra": extra}
 	}
 
 	return &columnDataTypes, err
@@ -82,6 +83,9 @@ func generateMysqlTypes(obj map[string]map[string]string, depth int, jsonAnnotat
 		primary := ""
 		if mysqlType["primary"] == "PRI" {
 			primary = ";primary_key"
+		}
+		if mysqlType["extra"] == "auto_increment" {
+			primary += ";AUTO_INCREMENT"
 		}
 
 		comment := mysqlType["columnComment"]
